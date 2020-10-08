@@ -1737,3 +1737,21 @@ NORMAL_TABLE = [
     DTSPoint3F(-0.531989, 0.374711, -0.759328),
     DTSPoint3F(0.194979, -0.059120, 0.979024)
 ]
+
+
+if __name__ == "__main__":
+    input_data = None
+    with open("egg.DTS", "rb") as f:
+    # with open("casinoHat_01.DTS", "rb") as f:
+    # with open("rpgmalehuman.dts", "rb") as f:
+        input_data = f.read()
+    shape = DTSHeader()
+    shape.read(input_data, 0)
+    print(shape.pretty(max_level=5))
+    print(f"File Size {len(input_data)}. Shape Size {shape.size()}.")
+    # with open("egg_copy.dts", "wb") as f:
+    # with open("casinoHat_01_copy.dts", "wb") as f:
+    # with open("rpgmalehuman_copy.dts", "wb") as f:
+    #     buffer = bytearray(shape.size())
+    #     shape.write(buffer, 0)
+    #     f.write(buffer)
