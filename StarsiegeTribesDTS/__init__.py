@@ -1,6 +1,6 @@
 bl_info = {
     "name": "Starsiege Tribes DTS",
-    "author": "Christopher Contaxis",
+    "author": "CanisUrsa",
     "version": (0, 0, 1),
     "blender": (2, 90, 1),
     "location": "File > Import-Export > Starsiege Tribes DTS (.dts)",
@@ -57,34 +57,68 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
         keywords = self.as_keywords()
         filepath = keywords['filepath']
         
+        shape = None
         with open(filepath, "rb") as f:
             shape = dts.DTSHeader()
             shape.read(f.read(), 0)
 
-            
+        if shape is None:
+            return {"FINISHED"}
+        
+        shape = shape.data
+        for dts_obj in shape.object_list:
+            dts_name = shape.name_list[dts_obj.name_index].decode()
+            if dts_name.lower() == "bounds":
+                continue
+            dts_obj_offset = dts_obj.offset
+            dts_mesh = shape.mesh_list[dts_obj.mesh_index].data
+
             new_vertex_list = []
             new_edge_list = []
             new_face_list = []
 
-            dts_vertex_list = shape.data.mesh_list[-1].data.vertex_list
-            scale = shape.data.mesh_list[-1].data.frame_list[-1].scale
-            origin = shape.data.mesh_list[-1].data.frame_list[-1].origin
-            for i in range(shape.data.mesh_list[-1].data.vertex_count):
-                vertex, normal = dts_vertex_list[i].decode(scale, origin)
-                new_vertex_list.append((vertex.x, vertex.y, vertex.z))
+            dts_frame_index = 0
+            dts_frame = dts_mesh.frame_list[dts_frame_index]
+            for dts_vertex_index in range(dts_mesh.vertex_count):
+                if (dts_frame_index + 1) < dts_mesh.frame_count and \
+                    dts_mesh.frame_list[dts_frame_index + 1].first_vertex_index == dts_vertex_index:
+                    dts_frame_index += 1
+                    dts_frame = dts_mesh.frame_list[dts_frame_index]
+                
+                dts_vertex, dts_normal = dts_mesh.vertex_list[dts_vertex_index].decode(dts_frame.scale, dts_frame.origin)
+                new_vertex_list.append((dts_vertex.x + dts_obj_offset.x, dts_vertex.y + dts_obj_offset.y, dts_vertex.z + dts_obj_offset.z))
 
-            dts_face_list = shape.data.mesh_list[-1].data.face_list
-            for i in range(shape.data.mesh_list[-1].data.face_count):
-                dts_face = dts_face_list[i]
+            for dts_face in dts_mesh.face_list:
                 new_face_list.append(dts_face.vertex_index_list)
 
-            mesh = bpy.data.meshes.new("importedmesh")
-            obj = bpy.data.objects.new(mesh.name, mesh)
-            col = bpy.data.collections[0]
-            col.objects.link(obj)
-            bpy.context.view_layer.objects.active = obj
+            new_mesh = bpy.data.meshes.new(dts_name)
+            new_obj = bpy.data.objects.new(new_mesh.name, new_mesh)
+            bpy.data.collections[0].objects.link(new_obj)
+            bpy.context.view_layer.objects.active = new_obj
+            new_mesh.from_pydata(new_vertex_list, new_edge_list, new_face_list)
 
-            mesh.from_pydata(new_vertex_list, new_edge_list, new_face_list)
+            
+            
+
+            # dts_vertex_list = shape.data.mesh_list[-1].data.vertex_list
+            # scale = shape.data.mesh_list[-1].data.frame_list[-1].scale
+            # origin = shape.data.mesh_list[-1].data.frame_list[-1].origin
+            # for i in range(shape.data.mesh_list[-1].data.vertex_count):
+            #     vertex, normal = dts_vertex_list[i].decode(scale, origin)
+            #     new_vertex_list.append((vertex.x, vertex.y, vertex.z))
+
+            # dts_face_list = shape.data.mesh_list[-1].data.face_list
+            # for i in range(shape.data.mesh_list[-1].data.face_count):
+            #     dts_face = dts_face_list[i]
+            #     new_face_list.append(dts_face.vertex_index_list)
+
+            # mesh = bpy.data.meshes.new("importedmesh")
+            # obj = bpy.data.objects.new(mesh.name, mesh)
+            # col = bpy.data.collections[0]
+            # col.objects.link(obj)
+            # bpy.context.view_layer.objects.active = obj
+
+            # mesh.from_pydata(new_vertex_list, new_edge_list, new_face_list)
         
         return {"FINISHED"}
 
