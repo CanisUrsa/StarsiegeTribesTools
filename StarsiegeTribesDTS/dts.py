@@ -811,6 +811,9 @@ class DTSQuat16(DTSBase):
         self.z = 0 # I16
         self.w = 0 # I16
 
+    def decode(self):
+        return (self.x / 32767.0, self.y / 32767.0, self.z / 32767.0, self.w / 32767.0)
+
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
@@ -1164,9 +1167,9 @@ class DTSVertex(DTSBase):
         self.normal = 0 # U8
 
     def decode(self, scale, origin):
-        return DTSPoint3F(self.x * scale.x + origin.x,
-                          self.y * scale.y + origin.y,
-                          self.z * scale.z + origin.z), \
+        return (self.x * scale.x + origin.x,
+                self.y * scale.y + origin.y,
+                self.z * scale.z + origin.z), \
                NORMAL_TABLE[self.normal]
     
     def pretty(self, level=0, max_level=9999, scale=None, origin=None):
@@ -1741,14 +1744,26 @@ NORMAL_TABLE = [
 
 if __name__ == "__main__":
     input_data = None
-    with open("egg.DTS", "rb") as f:
+    # with open("egg.DTS", "rb") as f:
     # with open("casinoHat_01.DTS", "rb") as f:
     # with open("rpgmalehuman.dts", "rb") as f:
+    # with open("slasher.dts", "rb") as f:
+    # with open("test_box_parent.DTS", "rb") as f:
+    with open("raft_b.DTS", "rb") as f:
+    # with open("jade.dts", "rb") as f:
+    # with open("PHA_PUMPKIN_L.DTS", "rb") as f:
         input_data = f.read()
     shape = DTSHeader()
     shape.read(input_data, 0)
-    print(shape.pretty(max_level=5))
-    print(f"File Size {len(input_data)}. Shape Size {shape.size()}.")
+    # print(shape.pretty(max_level=5))
+    # print(shape.data.pretty())
+
+    print(shape.data.pretty(max_level=5))
+    # for x in map(lambda x: x.pretty(), shape.data.node_list):
+    #     print(x)
+    # print(shape.data.bounds.pretty())
+    # print(shape.data.mesh_list[0].pretty())
+    # print(f"File Size {len(inputDTSObject.prett_data)}. Shape Size {shape.size()}.")
     # with open("egg_copy.dts", "wb") as f:
     # with open("casinoHat_01_copy.dts", "wb") as f:
     # with open("rpgmalehuman_copy.dts", "wb") as f:
