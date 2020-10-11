@@ -510,6 +510,9 @@ class DTSPoint3F(DTSBase):
         self.y = y # F32
         self.z = z # F32
 
+    def decode(self):
+        return (self.x, self.y, self.z)
+
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""

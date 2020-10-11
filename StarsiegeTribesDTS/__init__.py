@@ -68,173 +68,107 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
 
         if shape is None:
             return {"FINISHED"}
+
+        blender_collections = bpy.data.collections
+        blender_objects = bpy.data.objects
         
-        # name_map = {}
+        name_map = {}
         shape = shape.data
-        # collection_name_map = {}
+        for obj in shape.object_list:
+            obj_name = shape.name_list[obj.name_index].decode()
+            mesh = shape.mesh_list[obj.mesh_index].data
+            node = shape.node_list[obj.node_index]
+            node_name = shape.name_list[node.name_index].decode()
 
-        for dts_obj in shape.object_list:
-            dts_name = shape.name_list[dts_obj.name_index].decode()
-            dts_obj_offset = dts_obj.offset
-            dts_mesh = shape.mesh_list[dts_obj.mesh_index].data
-            dts_node = shape.node_list[dts_obj.node_index]
-            dts_transform = shape.transform_list[dts_node.default_transform_index]
-            dts_quat = dts_transform.quat.decode()
+            blender_vertex_list = []
+            blender_edge_list = []
+            blender_face_list = []
 
-            # dts_node_name = shape.name_list[dts_node.name_index].decode()
-            # if dts_node_name not in collection_name_map:
-            #     c = bpy.data.collections.new(dts_node_name)
-            #     collection_name_map[dts_node_name] = c.name
+            # bounds doesn't have an actual mesh, need to reconstruct it, we can use the mesh or the bounds listed
+            # in the shape. They differ. Don't know why....
+            if obj_name.lower() == "bounds":
+                dts_frame = mesh.frame_list[0]
+                # Use the actual mesh vertices
+                # bounds_min, normal = mesh.vertex_list[0].decode(dts_frame.scale, dts_frame.origin)
+                # bounds_max, normal = mesh.vertex_list[1].decode(dts_frame.scale, dts_frame.origin)
+                # Use the bounds in the shape
+                bounds_min = shape.bounds.min.decode()
+                bounds_max = shape.bounds.max.decode()
+                blender_vertex_list.append((bounds_min[0], bounds_min[1], bounds_max[2]))
+                blender_vertex_list.append((bounds_min[0], bounds_max[1], bounds_max[2]))
+                blender_vertex_list.append((bounds_max[0], bounds_max[1], bounds_max[2]))
+                blender_vertex_list.append((bounds_max[0], bounds_min[1], bounds_max[2]))
+                blender_vertex_list.append((bounds_min[0], bounds_min[1], bounds_min[2]))
+                blender_vertex_list.append((bounds_min[0], bounds_max[1], bounds_min[2]))
+                blender_vertex_list.append((bounds_max[0], bounds_max[1], bounds_min[2]))
+                blender_vertex_list.append((bounds_max[0], bounds_min[1], bounds_min[2]))
+                blender_face_list.append([0, 1, 2])
+                blender_face_list.append([2, 3, 0])
+                blender_face_list.append([4, 5, 6])
+                blender_face_list.append([6, 7, 4])
+                blender_face_list.append([0, 3, 7])
+                blender_face_list.append([7, 4, 0])
+                blender_face_list.append([1, 2, 6])
+                blender_face_list.append([6, 5, 1])
+                blender_face_list.append([3, 2, 6])
+                blender_face_list.append([6, 7, 3])
+                blender_face_list.append([0, 1, 5])
+                blender_face_list.append([5, 4, 0])
 
-            new_vertex_list = []
-            new_edge_list = []
-            new_face_list = []
+            # Create the vertex list
+            for vertex_index in range(mesh.vertex_count):
+                frame_index = int(vertex_index / mesh.vertex_per_frame_count)
+                frame = mesh.frame_list[frame_index]
+                vertex, normal = mesh.vertex_list[vertex_index].decode(frame.scale, frame.origin)
+                blender_vertex_list.append(vertex)
 
-            if dts_name.lower() == "bounds":
-                dts_frame = dts_mesh.frame_list[0]
-                bounds_min, normal = dts_mesh.vertex_list[0].decode(dts_frame.scale, dts_frame.origin)
-                bounds_max, normal = dts_mesh.vertex_list[1].decode(dts_frame.scale, dts_frame.origin)
-                new_vertex_list.append((bounds_min[0], bounds_min[1], bounds_max[2]))
-                new_vertex_list.append((bounds_min[0], bounds_max[1], bounds_max[2]))
-                new_vertex_list.append((bounds_max[0], bounds_max[1], bounds_max[2]))
-                new_vertex_list.append((bounds_max[0], bounds_min[1], bounds_max[2]))
-                new_vertex_list.append((bounds_min[0], bounds_min[1], bounds_min[2]))
-                new_vertex_list.append((bounds_min[0], bounds_max[1], bounds_min[2]))
-                new_vertex_list.append((bounds_max[0], bounds_max[1], bounds_min[2]))
-                new_vertex_list.append((bounds_max[0], bounds_min[1], bounds_min[2]))
-                new_face_list.append([0, 1, 2])
-                new_face_list.append([2, 3, 0])
-                new_face_list.append([4, 5, 6])
-                new_face_list.append([6, 7, 4])
-                new_face_list.append([0, 3, 7])
-                new_face_list.append([7, 4, 0])
-                new_face_list.append([1, 2, 6])
-                new_face_list.append([6, 5, 1])
-                new_face_list.append([3, 2, 6])
-                new_face_list.append([6, 7, 3])
-                new_face_list.append([0, 1, 5])
-                new_face_list.append([5, 4, 0])
+            # Create the face list
+            for face in mesh.face_list:
+                blender_face_list.append(face.vertex_index_list)
 
-            dts_frame_index = 0
-            dts_frame = dts_mesh.frame_list[dts_frame_index]
-            for dts_vertex_index in range(dts_mesh.vertex_count):
-                if (dts_frame_index + 1) < dts_mesh.frame_count and \
-                    dts_mesh.frame_list[dts_frame_index + 1].first_vertex_index == dts_vertex_index:
-                    dts_frame_index += 1
-                    dts_frame = dts_mesh.frame_list[dts_frame_index]
+            # Create the mesh and container object
+            blender_mesh = bpy.data.meshes.new(obj_name)
+            blender_obj = blender_objects.new(blender_mesh.name, blender_mesh)
+            # Add the name to the name map
+            name_map[obj_name] = blender_obj.name
+            # Link the container object to the collection
+            blender_collections[0].objects.link(blender_obj)
+
+            # Edit the mesh
+            transform = shape.transform_list[node.default_transform_index]
+            bpy.context.view_layer.objects.active = blender_obj
+            blender_mesh.from_pydata(blender_vertex_list, blender_edge_list, blender_face_list)
+            # TODO: Translate the mesh
+            # Rotate the mesh usg the quaternion
+            quat = transform.quat.decode()
+            blender_obj.rotation_mode = 'QUATERNION'
+            blender_obj.rotation_quaternion[0] = quat[0]
+            blender_obj.rotation_quaternion[1] = quat[1]
+            blender_obj.rotation_quaternion[2] = quat[2]
+            blender_obj.rotation_quaternion[3] = quat[3]
+
+        # Create parent order
+        # if the object name and node name differ then the object is a parent of that node
+        # if the object name and node name are the same then the object is a parent of another node
+        for obj in shape.object_list:
+            obj_name = shape.name_list[obj.name_index].decode()
+            node = shape.node_list[obj.node_index]
+            node_name = shape.name_list[node.name_index].decode()
+
+            if obj_name != node_name != obj_name:
+                blender_objects[name_map[obj_name]].parent = blender_objects[name_map[node_name]]
+            elif node.parent_index != -1:
+                parent = shape.node_list[node.parent_index]
+                parent_name = shape.name_list[parent.name_index].decode()
+
+                if parent_name not in name_map:
+                    blender_obj = blender_objects.new(parent_name, None)
+                    name_map[parent_name] = blender_obj.name
+                    blender_collections[0].objects.link(blender_obj)
                 
-                dts_vertex, dts_normal = dts_mesh.vertex_list[dts_vertex_index].decode(dts_frame.scale, dts_frame.origin)
-                new_vertex_list.append(dts_vertex)
-
-            for dts_face in dts_mesh.face_list:
-                new_face_list.append(dts_face.vertex_index_list)
-
-            new_mesh = bpy.data.meshes.new(dts_name)
-            new_obj = bpy.data.objects.new(new_mesh.name, new_mesh)
-            # name_map[dts_name] = new_mesh.name
-            bpy.data.collections[0].objects.link(new_obj)
-            bpy.context.view_layer.objects.active = new_obj
-            new_mesh.from_pydata(new_vertex_list, new_edge_list, new_face_list)
-            new_obj.rotation_mode = 'QUATERNION'
-            new_obj.rotation_quaternion[0] = dts_quat[0]
-            new_obj.rotation_quaternion[1] = dts_quat[1]
-            new_obj.rotation_quaternion[2] = dts_quat[2]
-            new_obj.rotation_quaternion[3] = dts_quat[3]
-
-            # translates = []
-            # translates.append(mathutils.Vector((dts_obj_offset.x, dts_obj_offset.y, dts_obj_offset.z)))
-            # translates.append(mathutils.Vector((dts_transform.translate.x, dts_transform.translate.y, dts_transform.translate.z)))
-            # quats = []
-            # quats.append(mathutils.Quaternion((dts_quat[3], dts_quat[0], dts_quat[1], dts_quat[2])))
-            # new_obj.location += mathutils.Vector((dts_obj_offset.x, dts_obj_offset.y, dts_obj_offset.z))
-            # new_obj.location += mathutils.Vector((dts_transform.translate.x, dts_transform.translate.y, dts_transform.translate.z))
-
-            # while dts_node.parent_index != -1:
-            #     dts_node = shape.node_list[dts_node.parent_index]
-            #     dts_transform = shape.transform_list[dts_node.default_transform_index]
-            #     dts_quat = dts_transform.quat.decode()
-
-                # new_obj_rot.rotate(mathutils.Quaternion((dts_quat[3], dts_quat[0], dts_quat[1], dts_quat[2])))
-                # quats.append(mathutils.Quaternion((dts_quat[3], dts_quat[0], dts_quat[1], dts_quat[2])))
-                
-                # translates.append(mathutils.Vector((dts_transform.translate.x, dts_transform.translate.y, dts_transform.translate.z)))
-                # new_obj.location += mathutils.Vector((dts_transform.translate.x, dts_transform.translate.y, dts_transform.translate.z))
-
-            
-            # for t in translates:
-            #     new_obj.location += t
-            # new_obj.location += translates[0]
-
-            # new_obj_rot = None
-            # for q in reversed(quats):
-            #     if new_obj_rot is None:
-            #         new_obj_rot = q
-            #     else:
-            #         # pass
-            #         new_obj_rot.rotate(q)
-            
-            # new_obj.rotation_quaternion[0] = new_obj_rot[0]
-            # new_obj.rotation_quaternion[1] = new_obj_rot[1]
-            # new_obj.rotation_quaternion[2] = new_obj_rot[2]
-            # new_obj.rotation_quaternion[3] = new_obj_rot[3]
-
-            
-
-            
-
-            # dts_vertex_list = shape.data.mesh_list[-1].data.vertex_list
-            # scale = shape.data.mesh_list[-1].data.frame_list[-1].scale
-            # origin = shape.data.mesh_list[-1].data.frame_list[-1].origin
-            # for i in range(shape.data.mesh_list[-1].data.vertex_count):
-            #     vertex, normal = dts_vertex_list[i].decode(scale, origin)
-            #     new_vertex_list.append((vertex.x, vertex.y, vertex.z))
-
-            # dts_face_list = shape.data.mesh_list[-1].data.face_list
-            # for i in range(shape.data.mesh_list[-1].data.face_count):
-            #     dts_face = dts_face_list[i]
-            #     new_face_list.append(dts_face.vertex_index_list)
-
-            # mesh = bpy.data.meshes.new("importedmesh")
-            # obj = bpy.data.objects.new(mesh.name, mesh)
-            # col = bpy.data.collections[0]
-            # col.objects.link(obj)
-            # bpy.context.view_layer.objects.active = obj
-
-            # mesh.from_pydata(new_vertex_list, new_edge_list, new_face_list)
-
-        # print("Linking now...")
-        # print(f"{name_map}")
-
-        # for dts_obj in shape.object_list:
-        #     dts_node = shape.node_list[dts_obj.node_index]
-
-        #     print(f"Linking node [{dts_obj.node_index}] with [{dts_node.parent_index}]")
-
-        #     if dts_node.parent_index != -1:
-        #         parent_node = shape.node_list[dts_node.parent_index]
-        #         parent_name = shape.name_list[parent_node.name_index].decode()
-        #         new_obj.parent = bpy.data.objects[name_map[parent_name]]
-        #         print(f"Linking {parent_name} to {name_map[parent_name]}")
+                blender_objects[name_map[obj_name]].parent = blender_objects[name_map[parent_name]]
         
         return {"FINISHED"}
-
-# import bpy
-
-# mesh = bpy.data.meshes.new("myBeautifulMesh")  # add the new mesh
-# obj = bpy.data.objects.new(mesh.name, mesh)
-# col = bpy.data.collections.get("Collection")
-# col.objects.link(obj)
-# bpy.context.view_layer.objects.active = obj
-
-# verts = [( 1.0,  1.0,  0.0), 
-#          ( 1.0, -1.0,  0.0),
-#          (-1.0, -1.0,  0.0),
-#          (-1.0,  1.0,  0.0),
-#          ]  # 4 verts made with XYZ coords
-# edges = []
-# faces = [[0, 1, 2, 3]]
-
-# mesh.from_pydata(verts, edges, faces)
 
     def draw(self, context):
         pass
