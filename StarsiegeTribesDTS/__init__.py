@@ -28,6 +28,8 @@ from bpy_extras.io_utils import (
 import mathutils
 from math import radians
 
+import os
+
 def console_print(*args, **kwargs):
     for a in context.screen.areas:
         if a.type == 'CONSOLE':
@@ -73,7 +75,29 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
         blender_objects = bpy.data.objects
         
         name_map = {}
+        material_name_map = {}
         shape = shape.data
+
+        # Need to create the materials before hand
+        for mat in shape.material_list.data.materials_list:
+            # Get the name of the material
+            mat_name = dts.make_string(mat.map_file)
+            # Expect the material to be located next to the dts
+            full_path = os.path.join(os.path.dirname(filepath), mat_name)
+
+            # Create the material in blender
+            blender_material = bpy.data.materials.new(mat_name)
+            # Create a map of the name from dts world to blender world
+            material_name_map[mat_name] = blender_material.name
+            blender_material.use_nodes = True
+            blender_bsdf = blender_material.node_tree.nodes["Principled BSDF"]
+            blender_texture = blender_material.node_tree.nodes.new("ShaderNodeTexImage")
+            # Load the image into blender
+            blender_texture.image = bpy.data.images.load(filepath=full_path)
+            # Link the bsdf shader base color to the textures color (link material to the texture)
+            blender_material.node_tree.links.new(blender_bsdf.inputs['Base Color'], blender_texture.outputs['Color'])
+
+        blender_obj = None
         for obj in shape.object_list:
             obj_name = shape.name_list[obj.name_index].decode()
             mesh = shape.mesh_list[obj.mesh_index].data
@@ -83,6 +107,9 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
             blender_vertex_list = []
             blender_edge_list = []
             blender_face_list = []
+            face_to_texture_vertex = {}
+            texture_vertex_list = []
+            material_index = None
 
             # bounds doesn't have an actual mesh, need to reconstruct it, we can use the mesh or the bounds listed
             # in the shape. They differ. Don't know why....
@@ -122,9 +149,21 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                 vertex, normal = mesh.vertex_list[vertex_index].decode(frame.scale, frame.origin)
                 blender_vertex_list.append(vertex)
 
+            # Create a list of texture vertices
+            for texture_vertex in mesh.texture_vertex_list:
+                texture_vertex_list.append((texture_vertex.x, texture_vertex.y))
+
             # Create the face list
             for face in mesh.face_list:
                 blender_face_list.append(face.vertex_index_list)
+                # Need a map of each face to each texture vertex so we can properly edit the UV later on
+                face_vertices = (face.vertex_index_list[0], face.vertex_index_list[1], face.vertex_index_list[2])
+                texture_vertices = (face.texture_index_list[0], face.texture_index_list[1], face.texture_index_list[2])
+                face_to_texture_vertex[face_vertices] = texture_vertices
+                # Assume there will be only a single material per mesh but each mesh can have its own material
+                # This is probably a safe assumption but who knows!
+                if material_index is None:
+                    material_index = face.material
 
             # Create the mesh and container object
             blender_mesh = bpy.data.meshes.new(obj_name)
@@ -146,6 +185,34 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
             blender_obj.rotation_quaternion[1] = quat[1]
             blender_obj.rotation_quaternion[2] = quat[2]
             blender_obj.rotation_quaternion[3] = quat[3]
+
+            # Apply material to the mesh
+            if material_index is not None:
+                # Get the dts material name
+                material_name = dts.make_string(shape.material_list.data.materials_list[material_index].map_file)
+                # Get the blender material name from the dts material name
+                material_name = material_name_map[material_name]
+                # Get the previously created blender material
+                blender_material = bpy.data.materials[material_name]
+                # Assign the blender material to the blender object
+                if blender_obj.data.materials:
+                    blender_obj.data.materials[0] = blender_material
+                else:
+                    blender_obj.data.materials.append(blender_material)
+
+                # Assign uv coordinates
+                blender_uv = blender_obj.data.uv_layers.new()
+                # Make the new uv layer the active one
+                blender_obj.data.uv_layers.active = blender_uv
+                # Iterate through each face in the mesh
+                for face in blender_obj.data.polygons:
+                    # This probably doesn't work all that well, will need to chang ethis
+                    temp = (face.vertices[0], face.vertices[1], face.vertices[2])
+                    texture_vertices = face_to_texture_vertex[temp]
+                    # Update each uv texture coordinate to match what is in the dts
+                    blender_uv.data[face.loop_indices[0]].uv = texture_vertex_list[texture_vertices[0]]
+                    blender_uv.data[face.loop_indices[1]].uv = texture_vertex_list[texture_vertices[1]]
+                    blender_uv.data[face.loop_indices[2]].uv = texture_vertex_list[texture_vertices[2]]
 
         # Create parent order
         # if the object name and node name differ then the object is a parent of that node
