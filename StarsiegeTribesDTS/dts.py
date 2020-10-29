@@ -687,7 +687,7 @@ class DTSSubSequence(DTSBase):
     def __init__(self):
         super().__init__("<hhh")
         self.sequence_index = 0        # I16
-        self.key_frames = 0            # I16 ????
+        self.key_frame_count = 0       # I16 ????
         self.first_key_frame_index = 0 # I16
 
     def pretty(self, level=0, max_level=9999):
@@ -696,13 +696,13 @@ class DTSSubSequence(DTSBase):
         return \
 f"""DTSSubSequence(
 {"  " * level}  sequence_index={self.sequence_index},
-{"  " * level}  key_frames={self.key_frames},
+{"  " * level}  key_frame_count={self.key_frame_count},
 {"  " * level}  first_key_frame_index={self.first_key_frame_index}
 {"  " * level})"""
 
     def read(self, buffer, offset):
         self.sequence_index, \
-        self.key_frames, \
+        self.key_frame_count, \
         self.first_key_frame_index = struct.unpack_from(self.format, buffer, offset)
         offset += struct.calcsize(self.format)
 
@@ -711,7 +711,7 @@ f"""DTSSubSequence(
     def write(self, buffer, offset):
         struct.pack_into(self.format, buffer, offset,
                          self.sequence_index,
-                         self.key_frames,
+                         self.key_frame_count,
                          self.first_key_frame_index)
         offset += struct.calcsize(self.format)
 
@@ -1752,16 +1752,17 @@ if __name__ == "__main__":
     # with open("rpgmalehuman.dts", "rb") as f:
     # with open("slasher.dts", "rb") as f:
     # with open("test_box_parent.DTS", "rb") as f:
-    with open("raft_b.DTS", "rb") as f:
+    # with open("raft_b.DTS", "rb") as f:
     # with open("jade.dts", "rb") as f:
     # with open("PHA_PUMPKIN_L.DTS", "rb") as f:
+    with open("spikedclub.dts", "rb") as f:
         input_data = f.read()
     shape = DTSHeader()
     shape.read(input_data, 0)
     # print(shape.pretty(max_level=5))
     # print(shape.data.pretty())
 
-    print(shape.data.pretty(max_level=5))
+    print(shape.data.pretty())
     # for x in map(lambda x: x.pretty(), shape.data.node_list):
     #     print(x)
     # print(shape.data.bounds.pretty())
