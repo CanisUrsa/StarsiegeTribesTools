@@ -130,14 +130,15 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                 # Use the bounds in the shape
                 bounds_min = shape.bounds.min.decode()
                 bounds_max = shape.bounds.max.decode()
-                blender_vertex_list.append((bounds_min[0], bounds_min[1], bounds_max[2]))
-                blender_vertex_list.append((bounds_min[0], bounds_max[1], bounds_max[2]))
-                blender_vertex_list.append((bounds_max[0], bounds_max[1], bounds_max[2]))
-                blender_vertex_list.append((bounds_max[0], bounds_min[1], bounds_max[2]))
-                blender_vertex_list.append((bounds_min[0], bounds_min[1], bounds_min[2]))
-                blender_vertex_list.append((bounds_min[0], bounds_max[1], bounds_min[2]))
-                blender_vertex_list.append((bounds_max[0], bounds_max[1], bounds_min[2]))
-                blender_vertex_list.append((bounds_max[0], bounds_min[1], bounds_min[2]))
+                # Need to swap y and z due to how tribes works
+                blender_vertex_list.append((bounds_min[0], bounds_min[2], bounds_max[1]))
+                blender_vertex_list.append((bounds_min[0], bounds_max[2], bounds_max[1]))
+                blender_vertex_list.append((bounds_max[0], bounds_max[2], bounds_max[1]))
+                blender_vertex_list.append((bounds_max[0], bounds_min[2], bounds_max[1]))
+                blender_vertex_list.append((bounds_min[0], bounds_min[2], bounds_min[1]))
+                blender_vertex_list.append((bounds_min[0], bounds_max[2], bounds_min[1]))
+                blender_vertex_list.append((bounds_max[0], bounds_max[2], bounds_min[1]))
+                blender_vertex_list.append((bounds_max[0], bounds_min[2], bounds_min[1]))
                 blender_face_list.append([0, 1, 2])
                 blender_face_list.append([2, 3, 0])
                 blender_face_list.append([4, 5, 6])
@@ -156,7 +157,8 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                 frame_index = int(vertex_index / mesh.vertex_per_frame_count)
                 frame = mesh.frame_list[frame_index]
                 vertex, normal = mesh.vertex_list[vertex_index].decode(frame.scale, frame.origin)
-                blender_vertex_list.append(vertex)
+                # Need to swap y and z due to how tribes works
+                blender_vertex_list.append((vertex[0], vertex[2], vertex[1]))
 
             # Create a list of texture vertices
             for texture_vertex in mesh.texture_vertex_list:
@@ -196,10 +198,8 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
             # Rotate the mesh using the quaternion
             quat = transform.quat.decode()
             blender_obj.rotation_mode = 'QUATERNION'
-            blender_obj.rotation_quaternion[0] = quat[0]
-            blender_obj.rotation_quaternion[1] = quat[1]
-            blender_obj.rotation_quaternion[2] = quat[2]
-            blender_obj.rotation_quaternion[3] = quat[3]
+            blender_obj.rotation_quaternion = mathutils.Quaternion((1.0, 0.0, 0.0, 0.0))
+            blender_obj.rotation_quaternion.rotate(mathutils.Quaternion(quat))
             # Apply object sub sequence if applicable
             if obj.sub_sequence_count > 0:
                 # Get the first sub sequence
