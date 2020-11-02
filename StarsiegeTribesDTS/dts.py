@@ -363,22 +363,15 @@ f"""DTSTSShape(
 {"  " * level}  radius={self.radius},
 {"  " * level}  center={self.center.pretty(level + 2, max_level)},
 {"  " * level}  bounds={self.bounds.pretty(level + 2, max_level)},
-{"  " * level}  node_list=[{','.join([x.pretty(level + 2, max_level) for x in self.node_list])}
-{"  " * level}  ],
+{"  " * level}  node_list={pretty_many(self.node_list, level + 1)},
 {"  " * level}  sequence_list=[{','.join([x.pretty(level + 2, max_level) for x in self.sequence_list])}
 {"  " * level}  ],
-{"  " * level}  sub_sequence_list=[{','.join([x.pretty(level + 2, max_level) for x in self.sub_sequence_list])}
-{"  " * level}  ],
-{"  " * level}  key_frame_list=[{','.join([x.pretty(level + 2, max_level) for x in self.key_frame_list])}
-{"  " * level}  ],
-{"  " * level}  transform_list=[{','.join([x.pretty(level + 2, max_level) for x in self.transform_list])}
-{"  " * level}  ],
-{"  " * level}  name_list=[{','.join([x.pretty(level + 2, max_level) for x in self.name_list])}
-{"  " * level}  ],
-{"  " * level}  object_list=[{','.join([x.pretty(level + 2, max_level) for x in self.object_list])}
-{"  " * level}  ],
-{"  " * level}  detail_list=[{','.join([x.pretty(level + 2, max_level) for x in self.detail_list])}
-{"  " * level}  ],
+{"  " * level}  sub_sequence_list={pretty_many(self.sub_sequence_list, level + 1)},
+{"  " * level}  key_frame_list={pretty_many(self.key_frame_list, level + 1)},
+{"  " * level}  transform_list={pretty_many(self.transform_list, level + 1)},
+{"  " * level}  name_list={pretty_many(self.name_list, level + 1)},
+{"  " * level}  object_list={pretty_many(self.object_list, level + 1)},
+{"  " * level}  detail_list={pretty_many(self.detail_list, level + 1)},
 {"  " * level}  transition_list=[{','.join([x.pretty(level + 2, max_level) for x in self.transition_list])}
 {"  " * level}  ],
 {"  " * level}  frame_trigger_list=[{','.join([x.pretty(level + 2, max_level) for x in self.frame_trigger_list])}
@@ -516,12 +509,7 @@ class DTSPoint3F(DTSBase):
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
-        return \
-f"""DTSPoint3F(
-{"  " * level}  x={self.x},
-{"  " * level}  y={self.y},
-{"  " * level}  z={self.z}
-{"  " * level})"""
+        return f"DTSPoint3F(x={self.x:0.2f}, y={self.y:0.2f}, z={self.z:0.2f})"
 
     def read(self, buffer, offset):
         self.x, \
@@ -591,14 +579,7 @@ class DTSNode(DTSBase):
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
-        return \
-f"""DTSNode(
-{"  " * level}  name_index={self.name_index},
-{"  " * level}  parent_index={self.parent_index},
-{"  " * level}  sub_sequence_count={self.sub_sequence_count},
-{"  " * level}  first_sub_sequence_index={self.first_sub_sequence_index},
-{"  " * level}  default_transform_index={self.default_transform_index}
-{"  " * level})"""
+        return f"DTSNode(name_index={self.name_index}, parent_index={self.parent_index}, sub_sequence_count={self.sub_sequence_count}, first_sub_sequence_index={self.first_sub_sequence_index}, default_transform_index={self.default_transform_index})"
 
     def read(self, buffer, offset):
         self.name_index, \
@@ -693,12 +674,7 @@ class DTSSubSequence(DTSBase):
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
-        return \
-f"""DTSSubSequence(
-{"  " * level}  sequence_index={self.sequence_index},
-{"  " * level}  key_frame_count={self.key_frame_count},
-{"  " * level}  first_key_frame_index={self.first_key_frame_index}
-{"  " * level})"""
+        return f"DTSSubSequence(sequence_index={self.sequence_index}, key_frame_count={self.key_frame_count}, first_key_frame_index={self.first_key_frame_index})"
 
     def read(self, buffer, offset):
         self.sequence_index, \
@@ -738,17 +714,7 @@ class DTSKeyFrame(DTSBase):
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
-        return \
-f"""DTSKeyFrame(
-{"  " * level}  position={self.position},
-{"  " * level}  key_value_index={self.key_value_index},
-{"  " * level}  material_index={self.material_index},
-{"  " * level}    visibility={(self.material_index & 0x8000) != 0},
-{"  " * level}    cares_about_visibility={(self.material_index & 0x4000) != 0},
-{"  " * level}    cares_about_material={(self.material_index & 0x2000) != 0},
-{"  " * level}    cares_about_frame={(self.material_index & 0x1000) != 0},
-{"  " * level}    material_index={self.material_index & 0x0FFF}
-{"  " * level})"""
+        return f"DTSKeyFrame(position={self.position:0.2f}, key_value_index={self.key_value_index}, material_index={self.material_index})"
 
     def read(self, buffer, offset):
         self.position, \
@@ -780,11 +746,7 @@ class DTSTransform(DTSBase):
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
-        return \
-f"""DTSTransform(
-{"  " * level}  quat={self.quat.pretty(level + 1, max_level)},
-{"  " * level}  translate={self.translate.pretty(level + 1, max_level)}
-{"  " * level})"""
+        return f"DTSTransform(quat={self.quat.pretty()}, translate={self.translate.pretty()})"
 
     def size(self):
         return self.quat.size() + \
@@ -815,18 +777,12 @@ class DTSQuat16(DTSBase):
         self.w = 0 # I16
 
     def decode(self):
-        return (self.x / 32767.0, self.y / 32767.0, self.z / 32767.0, self.w / 32767.0)
+        return (self.w / 32767.0, self.x / 32767.0, self.y / 32767.0, self.z / 32767.0)
 
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
-        return \
-f"""DTSQuat16(
-{"  " * level}  x={self.x},
-{"  " * level}  y={self.y},
-{"  " * level}  z={self.z},
-{"  " * level}  w={self.w}
-{"  " * level})"""
+        return f"DTSQuat16(x={self.x}, y={self.y}, z={self.z}, w={self.w})"
 
     def read(self, buffer, offset):
         self.x, \
@@ -862,10 +818,7 @@ class DTSName(DTSBase):
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
-        return \
-f"""DTSName(
-{"  " * level}  name="{make_string(self.name)}"
-{"  " * level})"""
+        return f"DTSName(name={make_string(self.name)})"
 
     def read(self, buffer, offset):
         self.name, = struct.unpack_from(self.format, buffer, offset)
@@ -899,17 +852,7 @@ class DTSObject(DTSBase):
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
-        return \
-f"""DTSObject(
-{"  " * level}  name_index={self.name_index},
-{"  " * level}  flags={self.flags},
-{"  " * level}  mesh_index={self.mesh_index},
-{"  " * level}  node_index={self.node_index},
-{"  " * level}  padding={self.padding},
-{"  " * level}  offset={self.offset.pretty(level + 1, max_level)},
-{"  " * level}  sub_sequence_count={self.sub_sequence_count},
-{"  " * level}  first_sub_sequence_index={self.first_sub_sequence_index}
-{"  " * level})"""
+        return f"DTSObject(name_index={self.name_index}, flags={self.flags}, mesh_index={self.mesh_index}, node_index={self.node_index}, offset={self.offset.pretty()}, sub_sequence_count={self.sub_sequence_count}, first_sub_sequence_index={self.first_sub_sequence_index})"
 
     def size(self):
         return struct.calcsize(self.format[0]) + \
@@ -963,11 +906,7 @@ class DTSDetail(DTSBase):
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
-        return \
-f"""DTSDetail(
-{"  " * level}  root_node_index={self.root_node_index},
-{"  " * level}  min_size={self.min_size}
-{"  " * level})"""
+        return f"DTSDetail(root_node_index={self.root_node_index}, min_size={self.min_size:0.2f})"
 
     def read(self, buffer, offset):
         self.root_node_index, \
@@ -1178,6 +1117,7 @@ class DTSVertex(DTSBase):
     def pretty(self, level=0, max_level=9999, scale=None, origin=None):
         if level > max_level:
             return ""
+        return ""
         normal = NORMAL_TABLE[self.normal]
         if scale is None and origin is None:
             return \
@@ -1228,6 +1168,7 @@ class DTSTextureVertex(DTSBase):
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
+        return ""
         return \
 f"""DTSTextureVertex(
 {"  " * level}  x={self.x},
@@ -1263,6 +1204,7 @@ class DTSFace(DTSBase):
     def pretty(self, level=0, max_level=9999):
         if level > max_level:
             return ""
+        return ""
         return \
 f"""DTSFace(
 {"  " * level}  vertex_index_list={self.vertex_index_list},
@@ -1484,6 +1426,13 @@ def make_string(buffer):
         if b == 0:
             return buffer[0:i].decode('ascii')
     return buffer.decode('ascii')
+
+def pretty_many(things, level):
+    text = "[\n"
+    for i, t in enumerate(things):
+        text += f"{'  ' * (level + 1)}[{i}] : {t.pretty(level + 1)}\n"
+    text += f"{'  ' * level}]"
+    return text
 
 NORMAL_TABLE = [
     DTSPoint3F(0.565061, -0.270644, -0.779396),
@@ -1744,33 +1693,63 @@ NORMAL_TABLE = [
     DTSPoint3F(0.194979, -0.059120, 0.979024)
 ]
 
+# 0 activation
+# 1 fire
+# 2 bounds (NODE) (obj 0 node 0)
+# 3 always (NODE) 
+# 4 dummyalways muzzle (NODE)
+# 5 parent rotate (NODE) (obj 1 node 3)
+# 6 pommel (obj 2 node 3)
+# 7 hilt (obj 3 node 3)
+# 8 embellish1 (NODE) (obj 4 node 4)
+# 9 crossguard (NODE) (obj 5 node 5)
+# 10 blade
+# 11 Box02 (NODE) (obj 6 node 6)
+# 12 notch3 (NODE) (obj 7 node 7)
+# 13 notch2 (NODE) (obj 8 node 8)
+# 14 notch1 (NODE) (obj 9 node 9)
+# 15 embellish02 (obj 10 node 3)
+
+# 0 = activation
+# 1 = fire
+# 2 = reload
+# 3 = bounds
+# 4 = always
+# 5 = dummyalways muzzle
+# 6 = hatchet_ha 128
+# 7 = hatched_r0 128
+# 8 = hatched_ri 128
+# 9 = hatched_r1 128
+# 10 = hatched_jo 128
+# 11 = hatched_bl 128
+
+# bounds
+# - bounds
+#   always
+#     dummyalways muzzle
+#   hatchet_ha 128 (0.0 -0.41 0.26 0 2998 32629 0)
+#   -hatchet_ha 128
+#     hatched_r0 128 (0.0 0.0 0.0 0 0 0 32629)
+#     -hatched_r0 128
+#     hatched_ri 128 (0.0 0.0 0.0 0 0 0 32629)
+#     -hatched_ri 128
+#     hatched_r1 128 (0.0 0.0 0.0 0 0 0 32629)
+#     -hatched_r1 128
+#     hatched_jo 128 (0.0 0.0 0.0 0 0 0 32629)
+#     -hatched_ro 128
+#     hatched_bl 128 (0.0 0.0 0.0 0 0 0 32629)
+#     -hatched_bl 128
 
 if __name__ == "__main__":
     input_data = None
-    # with open("egg.DTS", "rb") as f:
-    # with open("casinoHat_01.DTS", "rb") as f:
-    # with open("rpgmalehuman.dts", "rb") as f:
-    # with open("slasher.dts", "rb") as f:
-    # with open("test_box_parent.DTS", "rb") as f:
-    # with open("raft_b.DTS", "rb") as f:
-    # with open("jade.dts", "rb") as f:
-    # with open("PHA_PUMPKIN_L.DTS", "rb") as f:
-    with open("spikedclub.dts", "rb") as f:
+    # model = "club.dts"
+    # model = "dagger.dts"
+    # model = "knife.dts"
+    # model = "spear2.dts"
+    model = "hatchet.dts"
+    with open(f"/home/chris/.wine/drive_c/Dynamix/Tribes/RPG/{model}", "rb") as f:
         input_data = f.read()
     shape = DTSHeader()
     shape.read(input_data, 0)
-    # print(shape.pretty(max_level=5))
-    # print(shape.data.pretty())
 
     print(shape.data.pretty())
-    # for x in map(lambda x: x.pretty(), shape.data.node_list):
-    #     print(x)
-    # print(shape.data.bounds.pretty())
-    # print(shape.data.mesh_list[0].pretty())
-    # print(f"File Size {len(inputDTSObject.prett_data)}. Shape Size {shape.size()}.")
-    # with open("egg_copy.dts", "wb") as f:
-    # with open("casinoHat_01_copy.dts", "wb") as f:
-    # with open("rpgmalehuman_copy.dts", "wb") as f:
-    #     buffer = bytearray(shape.size())
-    #     shape.write(buffer, 0)
-    #     f.write(buffer)

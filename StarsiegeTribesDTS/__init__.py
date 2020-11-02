@@ -100,6 +100,36 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
             # Link the bsdf shader base color to the textures color (link material to the texture)
             blender_material.node_tree.links.new(blender_bsdf.inputs['Base Color'], blender_texture.outputs['Color'])
 
+        # Need to create all nodes with an empty mesh
+        blender_obj = None
+        for node in shape.node_list:
+            # Get the node name
+            node_name = shape.name_list[node.name_index].decode()
+
+            # Create the mesh and container object
+            blender_mesh = bpy.data.meshes.new(node_name)
+            blender_obj = blender_objects.new(blender_mesh.name, blender_mesh)
+            # Add the name to the name map
+            name_map[node_name] = blender_obj.name
+            # Link the container object to the collection
+            blender_collections[0].objects.link(blender_obj)
+
+        # Need to create all objects with an empty mesh
+        blender_obj = None
+        for obj in shape.object_list:
+            # Get the name of the object
+            obj_name = shape.name_list[obj.name_index].decode()
+
+            # Make sure this object isn't also a node
+            if not obj_name in name_map:
+                # Create the mesh and container object
+                blender_mesh = bpy.data.meshes.new(obj_name)
+                blender_obj = blender_objects.new(blender_mesh.name, blender_mesh)
+                # Add the name to the name map
+                name_map[obj_name] = blender_obj.name
+                # Link the container object to the collection
+                blender_collections[0].objects.link(blender_obj)
+
         # Need to create the objects now        
         blender_obj = None
         for obj in shape.object_list:
@@ -131,14 +161,14 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                 bounds_min = shape.bounds.min.decode()
                 bounds_max = shape.bounds.max.decode()
                 # Need to swap y and z due to how tribes works
-                blender_vertex_list.append((bounds_min[0], bounds_min[2], bounds_max[1]))
-                blender_vertex_list.append((bounds_min[0], bounds_max[2], bounds_max[1]))
-                blender_vertex_list.append((bounds_max[0], bounds_max[2], bounds_max[1]))
-                blender_vertex_list.append((bounds_max[0], bounds_min[2], bounds_max[1]))
-                blender_vertex_list.append((bounds_min[0], bounds_min[2], bounds_min[1]))
-                blender_vertex_list.append((bounds_min[0], bounds_max[2], bounds_min[1]))
-                blender_vertex_list.append((bounds_max[0], bounds_max[2], bounds_min[1]))
-                blender_vertex_list.append((bounds_max[0], bounds_min[2], bounds_min[1]))
+                blender_vertex_list.append((bounds_min[0], bounds_min[1], bounds_max[2]))
+                blender_vertex_list.append((bounds_min[0], bounds_max[1], bounds_max[2]))
+                blender_vertex_list.append((bounds_max[0], bounds_max[1], bounds_max[2]))
+                blender_vertex_list.append((bounds_max[0], bounds_min[1], bounds_max[2]))
+                blender_vertex_list.append((bounds_min[0], bounds_min[1], bounds_min[2]))
+                blender_vertex_list.append((bounds_min[0], bounds_max[1], bounds_min[2]))
+                blender_vertex_list.append((bounds_max[0], bounds_max[1], bounds_min[2]))
+                blender_vertex_list.append((bounds_max[0], bounds_min[1], bounds_min[2]))
                 blender_face_list.append([0, 1, 2])
                 blender_face_list.append([2, 3, 0])
                 blender_face_list.append([4, 5, 6])
@@ -157,8 +187,7 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                 frame_index = int(vertex_index / mesh.vertex_per_frame_count)
                 frame = mesh.frame_list[frame_index]
                 vertex, normal = mesh.vertex_list[vertex_index].decode(frame.scale, frame.origin)
-                # Need to swap y and z due to how tribes works
-                blender_vertex_list.append((vertex[0], vertex[2], vertex[1]))
+                blender_vertex_list.append(vertex)
 
             # Create a list of texture vertices
             for texture_vertex in mesh.texture_vertex_list:
@@ -177,29 +206,31 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                 if material_index is None:
                     material_index = face.material
 
-            # Create the mesh and container object
-            blender_mesh = bpy.data.meshes.new(obj_name)
-            blender_obj = blender_objects.new(blender_mesh.name, blender_mesh)
-            # Add the name to the name map
-            name_map[obj_name] = blender_obj.name
-            # Link the container object to the collection
-            blender_collections[0].objects.link(blender_obj)
+            # Get the mesh and container object
+            blender_mesh = bpy.data.meshes[name_map[obj_name]]
+            blender_obj = bpy.data.objects[name_map[obj_name]]
 
             # Edit the mesh using the default_transform
-            transform = shape.transform_list[node.default_transform_index]
             bpy.context.view_layer.objects.active = blender_obj
             blender_mesh.from_pydata(blender_vertex_list, blender_edge_list, blender_face_list)
             # Translate the mesh using the object offset
             vec = obj.offset.decode()
             blender_obj.location += mathutils.Vector(vec)
-            # Translate the mesh using the default transform
-            vec = transform.translate.decode() 
-            blender_obj.location += mathutils.Vector(vec)
-            # Rotate the mesh using the quaternion
-            quat = transform.quat.decode()
+            # Put object rotation mode into quaternion
             blender_obj.rotation_mode = 'QUATERNION'
             blender_obj.rotation_quaternion = mathutils.Quaternion((1.0, 0.0, 0.0, 0.0))
-            blender_obj.rotation_quaternion.rotate(mathutils.Quaternion(quat))
+            # Handle mesh translation and rotations using default transform
+            if node_name == obj_name:
+                # Default transforms apply only to the mesh of the node and not other meshes attached to the node
+                # If the names match then we are good to go... probably
+                transform = shape.transform_list[node.default_transform_index]
+                # Translate the mesh using the default transform
+                vec = transform.translate.decode() 
+                blender_obj.location += mathutils.Vector(vec)
+                # Rotate the mesh using the quaternion
+                quat = transform.quat.decode()
+                blender_obj.rotation_quaternion.rotate(mathutils.Quaternion(quat))
+            
             # Apply object sub sequence if applicable
             if obj.sub_sequence_count > 0:
                 # Get the first sub sequence
@@ -262,17 +293,28 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                 # The node has a parent
                 parent = shape.node_list[node.parent_index]
                 parent_name = shape.name_list[parent.name_index].decode()
-
-                if parent_name not in name_map:
-                    # If the parent doesn't exist then we may need to create it as a new blender object
-                    blender_obj = blender_objects.new(parent_name, None)
-                    name_map[parent_name] = blender_obj.name
-                    blender_collections[0].objects.link(blender_obj)
                 
+                # Link the parent to the child
                 blender_objects[name_map[obj_name]].parent = blender_objects[name_map[parent_name]]
+
+        # Create parent order for any other nodes that don't have a mesh
+        for node in shape.node_list:
+            node_name = shape.name_list[node.name_index].decode()
+
+            # Get the blender object we are trying to setup a parent for
+            blender_obj = blender_objects[name_map[node_name]]
+            if blender_obj.parent is None and node.parent_index != -1:
+                # Get the blender object that is the parent
+                parent = shape.node_list[node.parent_index]
+                parent_name = shape.name_list[parent.name_index].decode()
+
+                # Link the parent to the child
+                blender_obj.parent = blender_objects[name_map[parent_name]]      
         
         # Set the frame rate
         bpy.context.scene.render.fps = 20
+        bpy.context.scene.frame_start = 0
+        bpy.context.scene.frame_end = 1
 
         # Animations are tied to nodes so work from the node to the animation
         for node in shape.node_list:
@@ -280,6 +322,8 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
             node_name = shape.name_list[node.name_index].decode()
             # Get the blender object that maps to the node
             # This is the object that we are going to manipulate
+            if node_name not in name_map:
+                continue
             blender_obj = bpy.data.objects[name_map[node_name]]
             # Create the animation data for the blender object
             blender_obj.animation_data_create()
@@ -307,8 +351,11 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                     key_frame = shape.key_frame_list[sub_sequence.first_key_frame_index + key_frame_index]
                     # Get the transform
                     transform = shape.transform_list[key_frame.key_value_index]
-                    # Determine the frame number at 20 frames per second
-                    bpy.context.scene.frame_set(int(key_frame.position / 0.05))
+                    # Determine the frame number at the current frames per second
+                    frame = int(key_frame.position / (1.0 / bpy.context.scene.render.fps))
+                    bpy.context.scene.frame_set(frame)
+                    if frame > bpy.context.scene.frame_end:
+                        bpy.context.scene.frame_end = frame
                     # Translate the object
                     blender_obj.location = mathutils.Vector(transform.translate.decode())
                     # Rotate the object
