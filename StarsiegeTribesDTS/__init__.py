@@ -30,23 +30,6 @@ from math import radians
 
 import os
 
-def console_print(*args, **kwargs):
-    for a in context.screen.areas:
-        if a.type == 'CONSOLE':
-            c = {}
-            c['area'] = a
-            c['space_data'] = a.spaces.active
-            c['region'] = a.regions[-1]
-            c['window'] = context.window
-            c['screen'] = context.screen
-            s = " ".join([str(arg) for arg in args])
-            for line in s.split("\n"):
-                bpy.ops.console.scrollback_append(c, text=line)
-
-
-def print(*args, **kwargs):
-    console_print(*args, **kwargs)
-
 
 class ImportDTS(bpy.types.Operator, ImportHelper):
     """Load a Starsiege Tribes DTS File"""
@@ -229,10 +212,52 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                 blender_obj.location += mathutils.Vector(vec)
                 # Rotate the mesh using the quaternion
                 quat = transform.quat.decode()
-                blender_obj.rotation_quaternion.rotate(mathutils.Quaternion(quat))
+                blender_obj.rotation_quaternion = mathutils.Quaternion(quat)
+
+                # Nodes can have sub sequences associated with them... do I apply the first one?
+                # Apply object sub sequence if applicable
+                for i in range(node.sub_sequence_count):
+                    pass
+                    print(f"Iterating {node_name} {i} sequence")
+                    i += node.first_sub_sequence_index
+                    
+                # if node.sub_sequence_count > 0:
+                    # Get the first sub sequence
+                    # sub_sequence = shape.sub_sequence_list[node.first_sub_sequence_index]
+                    sub_sequence = shape.sub_sequence_list[i]
+                    print(f"Sequence is {sub_sequence.sequence_index}")
+                    if sub_sequence.sequence_index == 0:
+                        continue
+                    # Apply key frame if applicable
+                    if sub_sequence.key_frame_count > 0:
+                        print(f"Keyframe is {sub_sequence.first_key_frame_index}")
+                        key_frame = shape.key_frame_list[sub_sequence.first_key_frame_index]
+                        # Generate a warning if the position is not 0.0
+                        if key_frame.position != 0.0:
+                            print(f"Default key frame for object {obj_name} has a non 0.0 position ({key_frame.position}).")
+                        # Get the transform that applies to this key frame
+                        transform = shape.transform_list[key_frame.key_value_index]
+                        # Translate the mesh using the transform
+                        vec = transform.translate.decode()
+                        blender_obj.location += mathutils.Vector(vec)
+                        # Rotate the mesh using the quaternion
+                        quat = transform.quat.decode()
+                        print(f"first rotation: {blender_obj.rotation_quaternion}")
+                        blender_obj.rotation_quaternion.rotate(mathutils.Quaternion(quat))
+                        print(f"after rotation: {blender_obj.rotation_quaternion}")
+                        # blender_obj.rotation_quaternion = mathutils.Quaternion(quat)
             
             # Apply object sub sequence if applicable
             if obj.sub_sequence_count > 0:
+# KeyFrame material_index
+# New thoughts trying to get animations to work...
+# sub sequence needs to be applied if it cares about visibility
+# sub sequence only applied if it cares about frame
+# sub sequence only applies if visible is true?
+# Bit 15 indicates visibility.
+# Bit 14 indicates cares about visibility.
+# Bit 13 indicates cares about material.
+# Bit 12 indicates cares about frame.
                 # Get the first sub sequence
                 sub_sequence = shape.sub_sequence_list[obj.first_sub_sequence_index]
                 # Apply key frame if applicable
@@ -248,7 +273,8 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                     blender_obj.location += mathutils.Vector(vec)
                     # Rotate the mesh using the quaternion
                     quat = transform.quat.decode()
-                    blender_obj.rotation_quaternion.rotate(mathutils.Quaternion())
+                    blender_obj.rotation_quaternion.rotate(mathutils.Quaternion(quat))
+                    # blender_obj.rotation_quaternion = mathutils.Quaternion(quat)
 
             # Apply material to the mesh
             if material_index is not None:
@@ -318,8 +344,12 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
 
         # Animations are tied to nodes so work from the node to the animation
         for node in shape.node_list:
+            continue
             # Get the node name
             node_name = shape.name_list[node.name_index].decode()
+            default_transform = shape.transform_list[node.default_transform_index]
+            default_location = mathutils.Vector(default_transform.translate.decode())
+            default_rotation = mathutils.Quaternion(default_transform.quat.decode())
             # Get the blender object that maps to the node
             # This is the object that we are going to manipulate
             if node_name not in name_map:
@@ -357,9 +387,10 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                     if frame > bpy.context.scene.frame_end:
                         bpy.context.scene.frame_end = frame
                     # Translate the object
+                    # blender_obj.location = default_location + mathutils.Vector(transform.translate.decode())
                     blender_obj.location = mathutils.Vector(transform.translate.decode())
                     # Rotate the object
-                    blender_obj.rotation_quaternion = mathutils.Quaternion(transform.quat.decode())
+                    blender_obj.rotation_quaternion = default_rotation * mathutils.Quaternion(transform.quat.decode())
                     # Insert the translation key frame
                     blender_obj.keyframe_insert(data_path="location", index=-1)
                     # Insert the rotation key frame
