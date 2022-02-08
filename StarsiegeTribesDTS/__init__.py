@@ -217,7 +217,7 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                 # Nodes can have sub sequences associated with them... do I apply the first one?
                 # Apply object sub sequence if applicable
                 for i in range(node.sub_sequence_count):
-                    pass
+                    continue
                     print(f"Iterating {node_name} {i} sequence")
                     i += node.first_sub_sequence_index
                     
@@ -249,6 +249,7 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
             
             # Apply object sub sequence if applicable
             if obj.sub_sequence_count > 0:
+                continue
 # KeyFrame material_index
 # New thoughts trying to get animations to work...
 # sub sequence needs to be applied if it cares about visibility
@@ -344,7 +345,6 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
 
         # Animations are tied to nodes so work from the node to the animation
         for node in shape.node_list:
-            continue
             # Get the node name
             node_name = shape.name_list[node.name_index].decode()
             default_transform = shape.transform_list[node.default_transform_index]
@@ -387,10 +387,11 @@ class ImportDTS(bpy.types.Operator, ImportHelper):
                     if frame > bpy.context.scene.frame_end:
                         bpy.context.scene.frame_end = frame
                     # Translate the object
-                    # blender_obj.location = default_location + mathutils.Vector(transform.translate.decode())
-                    blender_obj.location = mathutils.Vector(transform.translate.decode())
+                    blender_obj.location = default_location + mathutils.Vector(transform.translate.decode())
+                    # blender_obj.location = mathutils.Vector(transform.translate.decode())
                     # Rotate the object
-                    blender_obj.rotation_quaternion = default_rotation * mathutils.Quaternion(transform.quat.decode())
+                    # blender_obj.rotation_quaternion = default_rotation * mathutils.Quaternion(transform.quat.decode())
+                    blender_obj.rotation_quaternion = mathutils.Quaternion(transform.quat.decode())
                     # Insert the translation key frame
                     blender_obj.keyframe_insert(data_path="location", index=-1)
                     # Insert the rotation key frame

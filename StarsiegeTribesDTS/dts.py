@@ -1757,10 +1757,10 @@ if __name__ == "__main__":
     input_data = None
     # model = "club.dts"
     # model = "dagger.dts"
-    # model = "knife.dts"
+    model = "knife.dts"
     # model = "spear2.dts"
     # model = "hatchet.dts"
-    model = "slasher.dts"
+    # model = "slasher.dts"
     # model = "spikedclub.dts"
     with open(f"/home/chris/.wine/drive_c/Dynamix/Tribes/RPG/{model}", "rb") as f:
         input_data = f.read()
